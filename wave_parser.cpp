@@ -3,7 +3,8 @@
 #include "core.h"
 #include "fatfs.h"
 #include <cstdio>
-
+#include <algorithm>
+#include <limits>
 const size_t read_buf_size = 4096;
 
 /*
@@ -55,7 +56,19 @@ WaveResult wave_load(size_t sample_number, SampleCollection &samples) {
 
         halt_on_fs_error("wave rloop", fres);
 
-        samples.add(sample_number, read_buffer, bytes_read / sizeof(read_buffer[0]));
+        auto number_of_samples = bytes_read / sizeof(read_buffer[0]);
+        float sample_array[read_buf_size];
+
+        // TODO: This assumes mono channel 16-bit PCM. Perhaps write handlers for more formats?
+        std::transform(
+            read_buffer,
+            read_buffer + number_of_samples,
+            sample_array,
+            [] (int16_t sample) { 
+                return sample / static_cast<float>(std::numeric_limits<int16_t>::max()); 
+            }
+        );
+        samples.add(sample_number, sample_array, number_of_samples);
 
         if(bytes_read < read_buf_size || f_eof(&current_file)) {
             break;

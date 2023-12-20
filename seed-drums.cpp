@@ -26,8 +26,8 @@ void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, s
 		}
 		auto sample = playback.sample(); //samples_sample(playback);
 		float volume = 10.0f;
-		out[0][i] = (sample / 32768.0f) * volume;
-		out[1][i] = (sample / 32768.0f) * volume;
+		out[0][i] = (sample) * volume;
+		out[1][i] = (sample) * volume;
 	}
 }
 

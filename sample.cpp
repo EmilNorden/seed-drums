@@ -2,18 +2,18 @@
 #include "daisy.h"
 #include <algorithm>
 
-int16_t DSY_SDRAM_BSS sample_memory[3000000];
+float DSY_SDRAM_BSS sample_memory[3000000];
 
 SamplePlayback::SamplePlayback()
     : SamplePlayback(nullptr, nullptr, 0) {
 }
 
-SamplePlayback::SamplePlayback(int16_t *base, int16_t *sample, size_t length)
+SamplePlayback::SamplePlayback(float *base, float *sample, size_t length)
     : m_base_ptr(base), m_sample_ptr(sample), m_length(length) {
 }
 
-int16_t SamplePlayback::sample() {
-    int16_t sample = *m_sample_ptr;
+float SamplePlayback::sample() {
+    float sample = *m_sample_ptr;
     m_sample_ptr++;
 
     return sample;
@@ -42,7 +42,7 @@ SamplePlayback Sample::into_playback() {
 }
 
 
-void SampleCollection::add(size_t sample_index, int16_t *data, size_t length) {
+void SampleCollection::add(size_t sample_index, float *data, size_t length) {
     if(!m_samples[sample_index].has_data()) {
         if(sample_index == 0) {
             m_samples[sample_index].set_data(sample_memory);
