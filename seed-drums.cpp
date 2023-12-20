@@ -1,6 +1,6 @@
 #include "daisy_seed.h"
 #include "daisysp.h"
-#include "samples.h"
+#include "sample.h"
 #include "wave_parser.h"
 
 using namespace daisy;
@@ -21,8 +21,10 @@ void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, s
 
 	for (size_t i = 0; i < size; i++)
 	{
-
-		auto sample = samples_sample(playback);
+		if(playback.finished()) {
+			playback.restart();
+		}
+		auto sample = playback.sample(); //samples_sample(playback);
 		float volume = 10.0f;
 		out[0][i] = (sample / 32768.0f) * volume;
 		out[1][i] = (sample / 32768.0f) * volume;
@@ -99,11 +101,12 @@ int main(void)
 	FRESULT fres = f_mount(&fsi.GetSDFileSystem(), "/", 1);
 	halt_on_fs_error("f_mount", fres);
 
-	samples_init();
+	SampleCollection samples;
+	//samples_init();
 
 size_t samplenr = 0;
-WaveResult res = wave_load(0);
-	res = wave_load(1);
+WaveResult res = wave_load(0, samples);
+	res = wave_load(1, samples);
 	if(res == WaveResult::OpenFailure) {
 		halt_error("WAVE FAIL - open");
 	} else if(res == WaveResult::InvalidHeader) {
@@ -113,7 +116,7 @@ WaveResult res = wave_load(0);
 	}
 
 
-	playback = samples_get(samplenr);
+	playback = samples.get(samplenr);
 
 	hw.SetAudioBlockSize(blocksize); // number of samples handled per callback
 	hw.SetAudioSampleRate(SaiHandle::Config::SampleRate::SAI_48KHZ);

@@ -2,6 +2,7 @@
 #define DRUMS_WAVE_PARSER_H_
 
 #include <cstdint>
+#include "sample.h"
 
 struct WaveHeader {
     uint32_t file_id;
@@ -26,6 +27,6 @@ enum class WaveResult {
     ReadFailure,
 };
 
-WaveResult wave_load(size_t sample_number);
+WaveResult wave_load(size_t sample_number, SampleCollection &samples);
 
 #endif

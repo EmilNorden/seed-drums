@@ -1,5 +1,5 @@
 #include "wave_parser.h"
-#include "samples.h"
+#include "sample.h"
 #include "core.h"
 #include "fatfs.h"
 #include <cstdio>
@@ -13,7 +13,7 @@ This means that these variables needs to live in global memory or be dynamically
 FIL current_file;
 int16_t read_buffer[read_buf_size];
 
-WaveResult wave_load(size_t sample_number) {
+WaveResult wave_load(size_t sample_number, SampleCollection &samples) {
     
     char path[64];
     sprintf(path, "/%d.wav", sample_number);
@@ -55,7 +55,7 @@ WaveResult wave_load(size_t sample_number) {
 
         halt_on_fs_error("wave rloop", fres);
 
-        samples_add(sample_number, read_buffer, bytes_read / sizeof(read_buffer[0]));
+        samples.add(sample_number, read_buffer, bytes_read / sizeof(read_buffer[0]));
 
         if(bytes_read < read_buf_size || f_eof(&current_file)) {
             break;
