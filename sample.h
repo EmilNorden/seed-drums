@@ -12,6 +12,7 @@ class SamplePlayback {
     SamplePlayback(float *base, float *sample, size_t length);
 
     float sample();
+    bool has_data();
     bool finished();
     void restart();
     private:
@@ -41,6 +42,17 @@ public:
     SamplePlayback get(size_t sample_index);
 private:
     std::array<Sample, NumberOfSamples> m_samples;
+};
+
+const size_t NumberOfConcurrentSamples = 32;
+class SampleBuffer {
+    public:
+    SampleBuffer();
+    float sample();
+    void play(SamplePlayback sample);
+    private:
+    std::array<SamplePlayback, NumberOfConcurrentSamples> m_playing_samples;
+    size_t m_next_sample_index;
 };
 
 #endif

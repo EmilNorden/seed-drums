@@ -19,6 +19,8 @@ float SamplePlayback::sample() {
     return sample;
 }
 
+bool SamplePlayback::has_data() { return m_sample_ptr != nullptr; }
+
 bool SamplePlayback::finished() {
     return m_sample_ptr == m_base_ptr + m_length;
 }
@@ -63,4 +65,26 @@ void SampleCollection::add(size_t sample_index, float *data, size_t length) {
 
 SamplePlayback SampleCollection::get(size_t sample_index) {
     return m_samples[sample_index].into_playback();
+}
+
+SampleBuffer::SampleBuffer()
+    : m_next_sample_index(0) {
+
+    }
+
+float SampleBuffer::sample() {
+    float result = 0.0f;
+    for(auto &s : m_playing_samples) {
+        if(s.has_data() && !s.finished()) {
+            result += s.sample();
+        }
+    }
+    return result;
+}
+
+void SampleBuffer::play(SamplePlayback sample) {
+    m_playing_samples[m_next_sample_index] = sample;
+
+    m_next_sample_index =
+        (m_next_sample_index + 1) % NumberOfConcurrentSamples;
 }
