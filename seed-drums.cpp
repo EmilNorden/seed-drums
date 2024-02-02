@@ -4,6 +4,7 @@
 #include "wave_parser.h"
 #include "switch_board.h"
 #include <system.h>
+#include <cmath>
 
 using namespace daisy;
 using namespace daisysp;
@@ -12,16 +13,14 @@ DaisySeed hw;
 SdmmcHandler   sdcard;
 FatFSInterface fsi;
 SampleBuffer sample_buffer;
-
+ 
 void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, size_t size)
 {
-
+	float volume = (1.0f - hw.adc.GetFloat(1)) * 5.0f;
 	for (size_t i = 0; i < size; i++)
 	{
-
 		//auto sample = machine.sample();
 		auto sample = sample_buffer.sample();
-		float volume = 5.0f;
 		out[0][i] = (sample) * volume;
 		out[1][i] = (sample) * volume;
 	}
@@ -65,46 +64,35 @@ void halt_on_fs_error(const char *context, FRESULT res) {
 	halt_error(message);
 }
 
-void set_leds(GPIO &latch, GPIO &clock, GPIO &output, bool stats[8]) {
-	latch.Write(false);
-	//clock.Write(false);
-	for(int i = 0; i < 8; ++i) {
-		clock.Write(false);
-		//output.Write((value & (1 << i));)
-		/*if(f & 0x1) {
-			output.Write(true);
-		}
-		else {
-			output.Write(false);
-		}*/
-		output.Write(stats[i]);
-		clock.Write(true);
-		//daisy::System::DelayUs(1);
-		//hw.DelayUs(1);
-		
-		//f = f >> 1;
-	}
-	latch.Write(true);
+void clock_leds(GPIO &clock) {
+	clock.Write(true);
+	daisy::System::Delay(20);
+	clock.Write(false);
+	daisy::System::Delay(20);
 }
 
-/*void set_leds(GPIO &latch, GPIO &clock, GPIO &output, uint8_t leds) {
+void latch_leds(GPIO &latch) {
+	latch.Write(true);
+	daisy::System::Delay(40);
 	latch.Write(false);
-	//clock.Write(false);
-	for(int i = 0; i < 8; ++i) {
-		if(leds & 0x1) {
+	daisy::System::Delay(40);
+}
+
+void set_leds(GPIO &latch, GPIO &clock, GPIO &output, uint8_t value) {
+	
+	for(int i = 7; i >= 0; i--){
+
+		if(value & (1 << i)) {
 			output.Write(true);
 		}
 		else {
 			output.Write(false);
 		}
-		
-		clock.Write(true);
-		daisy::System::DelayUs(1);
-		//hw.DelayUs(1);
-		leds = leds >> 1;
-		latch.Write(true);
+		daisy::System::Delay(40);
+		clock_leds(clock);
 	}
-}*/
+	latch_leds(latch);
+}
 
 
 int main(void)
@@ -117,9 +105,12 @@ int main(void)
 	GPIO ser;
 	GPIO latch;
 
-	clock.Init(daisy::seed::D14, GPIO::Mode::OUTPUT);
-	ser.Init(daisy::seed::D13, GPIO::Mode::OUTPUT);
-	latch.Init(daisy::seed::D12, GPIO::Mode::OUTPUT);
+	clock.Init(daisy::seed::D27, GPIO::Mode::OUTPUT);//, GPIO::Pull::NOPULL, GPIO::Speed::HIGH);
+	ser.Init(daisy::seed::D24, GPIO::Mode::OUTPUT);//, GPIO::Pull::NOPULL, GPIO::Speed::HIGH);
+	latch.Init(daisy::seed::D26, GPIO::Mode::OUTPUT);//, GPIO::Pull::NOPULL, GPIO::Speed::HIGH);
+	set_leds(latch, clock, ser, 85);
+	
+	halt_error("LEDS ARE SET");
 
 	SwitchBoard switches;
 
@@ -173,51 +164,29 @@ int main(void)
 	//uint8_t leds = (1);
 
 
-	GPIO switch_clock;
-	GPIO switch_ce;
-	GPIO switch_pl;
-	GPIO switch_out;
-
-	/*switch_clock.Init(daisy::seed::D8, GPIO::Mode::OUTPUT);
-	switch_ce.Init(daisy::seed::D9, GPIO::Mode::OUTPUT);
-	switch_pl.Init(daisy::seed::D7, GPIO::Mode::OUTPUT);
-	switch_out.Init(daisy::seed::D10, GPIO::Mode::INPUT);*/
-
 	int current_column = 0;
 	int step_dir = 1;
-	
+
+	//GPIO tempo;
+	//tempo.Init(daisy::seed::D15, GPIO::Mode::ANALOG);
+	daisy::AdcChannelConfig adc_configs[2];
+	adc_configs[0].InitSingle(daisy::seed::D15);
+	adc_configs[1].InitSingle(daisy::seed::D16);
+	hw.adc.Init(adc_configs, 2);
+	hw.adc.Start();	
+
 	while(1) {
-
-		// Parallel load
-		/*switch_clock.Write(false);
-		switch_ce.Write(false);
-
-		switch_pl.Write(false);
-		switch_pl.Write(true);
-
-		for(int i = 0; i < 8; ++i) {
-			switches[i] = switch_out.Read();
-			switch_clock.Write(true);
-			switch_clock.Write(false);
-		}*/
-
-		/*hw.PrintLine("%d %d %d %d %d %d %d %d",
-			switches[0],
-			switches[1],
-			switches[2],
-			switches[3],
-			switches[4],
-			switches[5],
-			switches[6],
-			switches[7]);
-		*/
+		const float MinDelay = 75;
+		const float MaxDelay = 1000;
+		float beat_delay = MinDelay + (hw.adc.GetFloat(0) * (MaxDelay - MinDelay));
 
 		uint32_t new_tick = timer.GetTick();
 		float intervalMsec = 1000. * ((float)(new_tick - last_tick) / (float)freq);
-		if(intervalMsec >= 500) {
+		if(intervalMsec >= beat_delay) {
 			last_tick = new_tick;
 			switches.update();
 			current_column = current_column + step_dir;
+			
 			if(current_column >= SwitchColumnCount) {
 				current_column = 0;
 			} else if(current_column < 0) {
@@ -229,8 +198,10 @@ int main(void)
 					sample_buffer.play(samples.get(row));
 				}
 			}
-			/*set_leds(latch, clock, ser, leds);
-			counter++;
+
+		
+			
+			/*counter++;
 			if(counter == 2) {
 				counter = 0;
 				leds[active_led] = false;

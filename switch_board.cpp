@@ -1,7 +1,7 @@
 #include "switch_board.h"
 
 std::array<daisy::Pin, SwitchRowCount> output_pin_configuration = {
-    daisy::seed::D10
+    daisy::seed::D10, daisy::seed::D11, daisy::seed::D12
 };
 
 SwitchBoard::SwitchBoard() {

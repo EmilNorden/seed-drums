@@ -5,7 +5,7 @@
 #include <array>
 
 //const size_t SwitchRowCount = 6;
-const size_t SwitchRowCount = 1;
+const size_t SwitchRowCount = 3;
 const size_t SwitchColumnCount = 8;
 
 class SwitchBoard {
