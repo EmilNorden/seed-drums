@@ -2,7 +2,7 @@
 TARGET = seed-drums
 
 # Sources
-CPP_SOURCES = seed-drums.cpp sample.cpp wave_parser.cpp switch_board.cpp
+CPP_SOURCES = seed-drums.cpp sample.cpp wave_parser.cpp switch_board.cpp led_array.cpp
 
 # Library Locations
 LIBDAISY_DIR = ../DaisyExamples/libDaisy/

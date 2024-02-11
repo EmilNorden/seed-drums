@@ -5,6 +5,7 @@
 #include <cstdio>
 #include <algorithm>
 #include <limits>
+
 const size_t read_buf_size = 4096;
 
 /*
@@ -14,22 +15,22 @@ This means that these variables needs to live in global memory or be dynamically
 FIL current_file;
 int16_t read_buffer[read_buf_size];
 
-WaveResult wave_load(size_t sample_number, SampleCollection &samples) {
+WaveResult wave_load(LedArray &leds, size_t sample_number, SampleCollection &samples) {
     
     char path[64];
     sprintf(path, "/%d.wav", sample_number);
     FRESULT fres;
     fres = f_open(&current_file, path, (FA_OPEN_EXISTING | FA_READ));
-    halt_on_fs_error("wave open", fres);
+    halt_on_fs_error(leds, "wave open", fres);
 
     size_t bytes_read;
     WaveHeader header;
     fres = f_read(&current_file, (void*)&header, sizeof(WaveHeader), &bytes_read);
-    halt_on_fs_error("wave read1", fres);
+    halt_on_fs_error(leds, "wave read1", fres);
     if(bytes_read != sizeof(WaveHeader)) {
         char str[32];
         sprintf(str, "header fail - %u", bytes_read);
-        halt_error(str);
+        halt_error(leds, str);
         return WaveResult::InvalidHeader;
     }
 
@@ -54,7 +55,7 @@ WaveResult wave_load(size_t sample_number, SampleCollection &samples) {
             read_buf_size,
             &bytes_read);
 
-        halt_on_fs_error("wave rloop", fres);
+        halt_on_fs_error(leds, "wave rloop", fres);
 
         auto number_of_samples = bytes_read / sizeof(read_buffer[0]);
         float sample_array[read_buf_size];

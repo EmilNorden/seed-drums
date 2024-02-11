@@ -3,6 +3,7 @@
 #include "sample.h"
 #include "wave_parser.h"
 #include "switch_board.h"
+#include "led_array.h"
 #include <system.h>
 #include <cmath>
 
@@ -17,6 +18,7 @@ SampleBuffer sample_buffer;
 void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, size_t size)
 {
 	float volume = (1.0f - hw.adc.GetFloat(1)) * 5.0f;
+	//float volume = 1.5f;
 	for (size_t i = 0; i < size; i++)
 	{
 		//auto sample = machine.sample();
@@ -26,13 +28,17 @@ void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, s
 	}
 }
 
-void halt_error(const char *msg) {
+void halt_error(LedArray &leds, const char *msg) {
+		uint8_t led_mask = 85;
 		while(1) {
 			hw.PrintLine(msg);
+			leds.set(led_mask);
+			led_mask = led_mask ^ 0xFF;
+			daisy::System::Delay(500);
 		}
 }
 
-void halt_on_fs_error(const char *context, FRESULT res) {
+void halt_on_fs_error(LedArray &leds, const char *context, FRESULT res) {
 	if(res == FR_OK) {
 		return;
 	}
@@ -61,39 +67,8 @@ void halt_on_fs_error(const char *context, FRESULT res) {
 		sprintf(message, "%s %s", context, "UNKNOWN ERROR");
 	}
 		
-	halt_error(message);
+	halt_error(leds, message);
 }
-
-void clock_leds(GPIO &clock) {
-	clock.Write(true);
-	daisy::System::Delay(20);
-	clock.Write(false);
-	daisy::System::Delay(20);
-}
-
-void latch_leds(GPIO &latch) {
-	latch.Write(true);
-	daisy::System::Delay(40);
-	latch.Write(false);
-	daisy::System::Delay(40);
-}
-
-void set_leds(GPIO &latch, GPIO &clock, GPIO &output, uint8_t value) {
-	
-	for(int i = 7; i >= 0; i--){
-
-		if(value & (1 << i)) {
-			output.Write(true);
-		}
-		else {
-			output.Write(false);
-		}
-		daisy::System::Delay(40);
-		clock_leds(clock);
-	}
-	latch_leds(latch);
-}
-
 
 int main(void)
 {
@@ -101,16 +76,26 @@ int main(void)
 	hw.Init();
 	hw.StartLog(false);
 
-	GPIO clock;
+	/*GPIO clock;
 	GPIO ser;
 	GPIO latch;
+	GPIO output_enable;
+	GPIO clear;*/
 
-	clock.Init(daisy::seed::D27, GPIO::Mode::OUTPUT);//, GPIO::Pull::NOPULL, GPIO::Speed::HIGH);
+	/*clock.Init(daisy::seed::D27, GPIO::Mode::OUTPUT);//, GPIO::Pull::NOPULL, GPIO::Speed::HIGH);
 	ser.Init(daisy::seed::D24, GPIO::Mode::OUTPUT);//, GPIO::Pull::NOPULL, GPIO::Speed::HIGH);
 	latch.Init(daisy::seed::D26, GPIO::Mode::OUTPUT);//, GPIO::Pull::NOPULL, GPIO::Speed::HIGH);
-	set_leds(latch, clock, ser, 85);
-	
-	halt_error("LEDS ARE SET");
+	output_enable.Init(daisy::seed::D25, GPIO::Mode::OUTPUT);
+	clear.Init(daisy::seed::D28, GPIO::Mode::OUTPUT);
+
+	output_enable.Write(false);
+	clear.Write(true);*/
+
+	//set_leds(latch, clock, ser, 85);
+	//set_leds(latch, clock, ser, 85);
+	//halt_error("leds are set!");
+
+	LedArray leds;
 
 	SwitchBoard switches;
 
@@ -120,33 +105,33 @@ int main(void)
 	sd_cfg.Defaults();
 	sd_cfg.speed = SdmmcHandler::Speed::SLOW;
     if(sdcard.Init(sd_cfg) == SdmmcHandler::Result::ERROR) {
-		halt_error("SDMMC ERROR");
+		halt_error(leds, "SDMMC ERROR");
 	}
 	
 	auto fsi_result = fsi.Init(FatFSInterface::Config::MEDIA_SD);
 	if(fsi_result == FatFSInterface::Result::ERR_TOO_MANY_VOLUMES) {
-		halt_error("ERR_TOO_MANY_VOLUMES");
+		halt_error(leds, "ERR_TOO_MANY_VOLUMES");
 	} else if(fsi_result == FatFSInterface::Result::ERR_NO_MEDIA_SELECTED) {
-		halt_error("ERR_NO_MEDIA_SELECTED");
+		halt_error(leds, "ERR_NO_MEDIA_SELECTED");
 	} else if(fsi_result == FatFSInterface::Result::ERR_GENERIC) {
-		halt_error("ERR_GENERIC");
+		halt_error(leds, "ERR_GENERIC");
 	}
 
 	FRESULT fres = f_mount(&fsi.GetSDFileSystem(), "/", 1);
-	halt_on_fs_error("f_mount", fres);
+	halt_on_fs_error(leds, "f_mount", fres);
 
 	SampleCollection samples;
 	//samples_init();
 
 	for(int i = 0; i < 8; ++i) {
-	WaveResult res = wave_load(i, samples);
-	if(res == WaveResult::OpenFailure) {
-		halt_error("WAVE FAIL - open");
-	} else if(res == WaveResult::InvalidHeader) {
-		halt_error("WAVE FAIL - header");
-	} else if(res == WaveResult::ReadFailure) {
-		halt_error("WAVE FAIL - read");
-	}
+		WaveResult res = wave_load(leds, i, samples);
+		if(res == WaveResult::OpenFailure) {
+			halt_error(leds, "WAVE FAIL - open");
+		} else if(res == WaveResult::InvalidHeader) {
+			halt_error(leds, "WAVE FAIL - header");
+		} else if(res == WaveResult::ReadFailure) {
+			halt_error(leds, "WAVE FAIL - read");
+		}
 	}
 
 	TimerHandle timer;
@@ -164,7 +149,7 @@ int main(void)
 	//uint8_t leds = (1);
 
 
-	int current_column = 0;
+	int current_column = -1;
 	int step_dir = 1;
 
 	//GPIO tempo;
@@ -174,6 +159,8 @@ int main(void)
 	adc_configs[1].InitSingle(daisy::seed::D16);
 	hw.adc.Init(adc_configs, 2);
 	hw.adc.Start();	
+
+	constexpr size_t flow_control_row_index = 0;
 
 	while(1) {
 		const float MinDelay = 75;
@@ -185,6 +172,7 @@ int main(void)
 		if(intervalMsec >= beat_delay) {
 			last_tick = new_tick;
 			switches.update();
+
 			current_column = current_column + step_dir;
 			
 			if(current_column >= SwitchColumnCount) {
@@ -192,13 +180,28 @@ int main(void)
 			} else if(current_column < 0) {
 				current_column = SwitchColumnCount - 1;
 			}
+			leds.set(1 << (size_t)current_column);
 
 			for(int row = 0; row < SwitchRowCount; ++row) {
+				if(row == flow_control_row_index) {
+					continue;
+				}
 				if(switches.get_switch_state(current_column, row)) {
+					/*char msg[64];
+					sprintf(msg, "here I am --> %d", current_column);
+					halt_error(msg);*/
 					sample_buffer.play(samples.get(row));
 				}
 			}
 
+			//set_leds(latch, clock, ser, 1 << ((current_column+1) % SwitchColumnCount));
+			//set_leds(latch, clock, ser,2);
+
+			if(switches.get_switch_state(current_column, flow_control_row_index)) {
+				step_dir = step_dir * -1;
+			}
+
+			
 		
 			
 			/*counter++;

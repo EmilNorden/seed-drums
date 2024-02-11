@@ -1,8 +1,10 @@
 #include "switch_board.h"
 
 std::array<daisy::Pin, SwitchRowCount> output_pin_configuration = {
-    daisy::seed::D10, daisy::seed::D11, daisy::seed::D12
+    daisy::seed::D10, daisy::seed::D11, daisy::seed::D12,
+    daisy::seed::D13, daisy::seed::D14, daisy::seed::D17
 };
+
 
 SwitchBoard::SwitchBoard() {
     m_clk.Init(daisy::seed::D8, daisy::GPIO::Mode::OUTPUT);
@@ -25,13 +27,19 @@ void SwitchBoard::update() {
     m_pl.Write(false);
 	m_pl.Write(true);
 
+
+    // TODO: Perhaps remove m_current_state and return a "context" struct that contains the state and the flow direction?
     for(int column = 0; column < SwitchColumnCount; ++column) {
+
+
         for(int row = 0; row < SwitchRowCount; ++row) {
             m_current_state[row][column] = m_shr_outputs[row].Read();
         }
-        //switches[i] = switch_out.Read();
-		m_clk.Write(true);
+
+        m_clk.Write(true);
 		m_clk.Write(false);
+        //switches[i] = switch_out.Read();
+
     }
 
 }

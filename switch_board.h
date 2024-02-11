@@ -4,9 +4,8 @@
 #include "daisy_seed.h"
 #include <array>
 
-//const size_t SwitchRowCount = 6;
-const size_t SwitchRowCount = 3;
-const size_t SwitchColumnCount = 8;
+const size_t SwitchRowCount = 6;
+const int SwitchColumnCount = 8;
 
 class SwitchBoard {
     public:

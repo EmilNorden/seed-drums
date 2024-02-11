@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include "sample.h"
+#include "led_array.h"
 
 struct WaveHeader {
     uint32_t file_id;
@@ -27,6 +28,6 @@ enum class WaveResult {
     ReadFailure,
 };
 
-WaveResult wave_load(size_t sample_number, SampleCollection &samples);
+WaveResult wave_load(LedArray &leds, size_t sample_number, SampleCollection &samples);
 
 #endif
